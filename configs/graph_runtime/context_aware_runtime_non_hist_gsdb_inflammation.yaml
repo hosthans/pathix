@@ -1,0 +1,11 @@
+extends: ./context_aware_runtime_gsdb.yaml
+graph_build:
+  build_config: ../graph_build/context_aware_pipeline_gsdb_inflammation.yaml
+  model: resnet50
+  build:
+    patch_size: 256
+    stride: 256
+    feature_batch_size: 1500
+  csv: null
+  csv_path: data/splits/gsdb/all_slides.csv
+  overwrite: false

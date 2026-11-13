@@ -1,0 +1,8 @@
+extends: ./simple_runtime_gsdb.yaml
+graph_build:
+  build_config: ../graph_build/context_aware_pipeline_gsdb.yaml
+  visualize_each_graph: true
+
+  dataset: gsdb
+  model: prov_gigapath
+  seed: 42

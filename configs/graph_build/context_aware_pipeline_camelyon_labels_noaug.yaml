@@ -1,0 +1,12 @@
+# Like context_aware_pipeline_camelyon_domain_robust_labels.yaml, but without any
+# augmentation (no stain_augment / gaussian_blur / jpeg_compression).
+# Only deterministic Macenko color normalization is applied.
+extends: ./context_aware_pipeline_camelyon_labels.yaml
+graph_build:
+  build:
+    feature_transforms:
+      - name: color_normalize
+        method: macenko
+        target_stats_path: configs/graph_build/reference_stats/camelyon_train_lab.json
+        macenko_rescale_concentration: false
+    transform_seed: 42

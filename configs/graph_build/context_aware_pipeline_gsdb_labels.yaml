@@ -1,0 +1,17 @@
+extends: ./context_aware_pipeline_gsdb.yaml
+graph_build:
+  creation:
+    label_fields:
+      - name: status
+        node_types: [region, patch, slide]
+        source: annotation_primary
+        collapse: null
+        slide_aggregation: majority_mixed
+        mixed_threshold: 0.9
+      - name: tissue_type
+        node_types: [region, patch, slide]
+        source: annotation_extra
+        extra_field: tissue_type
+        collapse: null
+        slide_aggregation: majority_mixed
+        mixed_threshold: 0.9

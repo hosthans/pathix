@@ -1,0 +1,44 @@
+name: gsdb
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  - pytorch=2.8
+  - torchvision
+  - torchaudio
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - pyparsing
+  - scikit-image
+  - tifffile
+  - seaborn
+  - plotly
+  - sqlalchemy
+  - optuna
+  - pip
+  - tqdm
+  - shapely
+  - openslide
+  - openslide-python
+  - huggingface_hub
+  - pillow
+
+  - pip:
+      - albumentations
+      - cellpose
+      - opencv-python
+      - torch-geometric
+      - timm
+      - zarr
+      - openslide-bin
+      - pycocotools
+      - torchmetrics
+      - tk
+      - scikit-learn
+      - pyyaml

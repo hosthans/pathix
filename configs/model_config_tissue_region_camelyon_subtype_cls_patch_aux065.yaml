@@ -1,0 +1,129 @@
+# Ablation sibling of model_config_tissue_region_camelyon_subtype_cls.yaml: isolates whether
+# pulling patch_aux_weight down from 0.65 to 0.3 (done, unablated, in the 20260913_214609 run --
+# see that file's patch_aux_weight comment) was actually what drove the improvement over the
+# 20260906-20260908 runs, or whether it was incidental to other changes made around the same time.
+# Every other setting here is identical to the 20260913_214609 recipe (including
+# balanced_sampling: true with NO avoid_double_balance_correction) so this changes exactly one
+# variable relative to that run's result. Compare its test-set multiclass_metrics.json against
+# results/evaluations/lymph_dataset-camelyon_cfg-model_config_tissue_region_camelyon_subtype_cls_gnn_tissue_region_net_graph_pov-gigapath_20260913_214609/split_test/tissue_region_net_test_multiclass_metrics.json
+#
+# Use with:
+#   python -u src/entrypoint/train_model.py \
+#     --dataset camelyon --task lymph --model_type gnn --architecture tissue_region_net \
+#     --input_type graph --embedding_type pov-gigapath \
+#     --graph_target_dir data/processed/graphs/camelyon/context_aware_runtime \
+#     --cached --mil --seed 42 \
+#     --config_name model_config_tissue_region_camelyon_subtype_cls_patch_aux065
+
+common:
+  deterministic: true
+  mixed_precision: false
+  save_frequency: 5
+  gradient_clipping: 1.0
+  seed: 42
+  device: "cuda:0"
+  fine_tuning:
+    enabled: false
+    pretrained_checkpoint: null
+    strict_load: false
+    freeze_all: false
+    freeze_backbone: false
+    freeze_feature_extractor: false
+    freeze_layers: []
+    trainable_layers: []
+    unfreeze_backbone_epoch: null
+    fine_tune_lr: null
+
+dataset_settings:
+  camelyon:
+    label_mode: multiclass
+    num_classes: 4
+
+architectures:
+  tissue_region_net:
+    output_features: 160
+
+lymph:
+  tissue_region_net:
+    architecture:
+      name: tissue_region_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: multiclass
+    num_classes: 4
+    label_field: subtype
+    batch_size: 1
+    val_batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: false
+    gradient_clipping: 1.0
+    num_workers: 0
+
+    dropout_rate: 0.45
+    hidden_dim: 160
+    num_layers: 3
+    heads: 4
+    edge_dropout_p: 0.30
+    region_aux_weight: 0.25
+    region_aux_pos_weight_cap: 6.0
+
+    patch_hidden_dim: 160
+    patch_num_layers: 3
+    # The value being ablated -- see this file's header comment. Everything else below is
+    # identical to model_config_tissue_region_camelyon_subtype_cls.yaml's 20260913_214609 recipe.
+    patch_aux_weight: 0.65
+    patch_aux_pos_weight_cap: 6.0
+    patch_edge_dropout_p: 0.30
+    max_patch_nodes_for_full_forward: 6000
+    max_patch_edges_for_full_forward: 150000
+    graph_instance_norm: false
+    use_extent_features: true
+
+    k: 10
+    normalize_pos: true
+    epochs: 80
+    in_dim: 1536
+    strict_graph_name_match: false
+    train_augmentations:
+      - name: feature_gaussian_noise
+        std: 0.05
+        node_types: [patch, region]
+      - name: feature_dropout
+        p: 0.1
+        node_types: [patch, region]
+      - name: feature_scale_noise
+        std: 0.1
+        node_types: [patch, region]
+      - name: graph_mixstyle
+        alpha: 0.2
+        p: 0.4
+        node_types: [patch, region]
+
+    consistency_weight: 0.0
+    consistency_specs: []
+    consistency_p: 1.0
+    domain_adversarial_weight: 0.0
+    domain_adversarial_specs: []
+    slide_label_smoothing: 0.0
+    monitor_metric: kappa_quadratic
+    ordinal_class_order: [1, 3, 2, 0]
+    balanced_sampling: true
+
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0008
+      weight_decay: 0.02
+      momentum: 0.9
+    scheduler:
+      enabled: true
+      name: ReduceLROnPlateau
+      mode: max
+      factor: 0.5
+      patience: 5
+    early_stopping:
+      enabled: true
+      patience: 10
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null

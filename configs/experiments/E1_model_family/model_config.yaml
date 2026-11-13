@@ -1,0 +1,593 @@
+# Common configuration across all models and tasks
+common:
+  deterministic: true
+  mixed_precision: false
+  save_frequency: 5
+  gradient_clipping: 1.0
+  seed: 42
+  device: "cuda:0"
+  fine_tuning:
+    enabled: false
+    pretrained_checkpoint: null
+    strict_load: false
+    freeze_all: false
+    freeze_backbone: false
+    freeze_feature_extractor: false
+    freeze_layers: []
+    trainable_layers: []
+    unfreeze_backbone_epoch: null
+    fine_tune_lr: null
+  transforms:
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    validation:
+      resize: 256
+      center_crop: 224
+
+dataset_settings:
+  gsdb:
+    label_mode: binary
+    num_classes: 1
+  camelyon:
+    label_mode: multiclass
+    num_classes: 4
+
+# Model architecture feature dimensions
+architectures:
+  resnet18:
+    output_features: 512
+  gigapath:
+    output_features: 1536
+  convnext_large:
+    output_features: 1536
+  swin_v2_b:
+    output_features: 1024
+  densenet121:
+    output_features: 1024
+  densenet169:
+    output_features: 1664
+
+# Lymph task configurations
+lymph:
+  resnet18:
+    architecture:
+      name: resnet18
+      pretrained: true
+      feature_extraction: true
+    batch_size: 32
+    dropout_rate: 0.4
+    epochs: 30
+    optimizer:
+      name: SGD
+      learning_rate: 0.001
+      momentum: 0.9
+      weight_decay: 0.0005
+    pos_weight: 6.5
+    scheduler:
+      enabled: true
+      name: StepLR
+    early_stopping:
+      enabled: true
+      patience: 7
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.85, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: false
+        color_jitter:
+          enabled: false
+          brightness: 0.2
+          contrast: 0.2
+          saturation: 0.2
+          hue: 0.05
+        random_rotation:
+          enabled: true
+          degrees: 15
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: true
+          translate: [0.02, 0.02]
+          scale: [0.98, 1.02]
+
+# Inflammation task configurations
+inflammation:
+  # ResNet18 configuration - Updated based on Höfling's thesis (Section 8.2.1)
+  resnet18:
+    architecture:
+      name: resnet18
+      pretrained: true
+      feature_extraction: false
+    # --- E1 (model family): shared protocol with MIL and graph -- docs/experiments/cross_domain_experiments.md, E1 ---
+    # Differs from the GSDB-parity block in configs/model_config.yaml exactly in:
+    # cudnn_allow_tf32 (removed), gsdb_parity_train, gsdb_parity_eval, color_normalization,
+    # transforms.training (no augmentation). All other hyperparameters are unchanged (Höfling/GSDB).
+    he_only: true              # unchanged: train/val on HE only (test always on all stains)
+    mixed_precision: true      # unchanged (GSDB): fp16 AMP
+    gradient_clipping: null    # unchanged (GSDB): no clipping
+    auto_pos_weight: false     # unchanged (GSDB): pos_weight from config
+    max_white_fraction: 0.9    # unchanged (GSDB): keep tiles with < 90% white pixels; MIL uses the same value
+    num_workers: 8             # unchanged
+    gsdb_parity_train: false   # E1: master_code training (train_model_image) -- needed for Macenko / no augmentation
+    gsdb_parity_eval: false    # E1: shared slide protocol (as MIL / graph)
+    color_normalization:       # E1: Macenko exactly as in the graph build (context_aware_pipeline_gsdb_inflammation_noaug)
+      method: macenko
+      target_stats_path: configs/graph_build/reference_stats/gsdb_scanner1_lab.json
+      macenko_rescale_concentration: false
+    batch_size: 128        # "With a learning rate of 0.001 and a batch size of 128"
+    dropout_rate: 0.0      # "Due to the already higher validation loss than the training loss, the author decided not to test other methods like dropout"
+    epochs: 25             # "It was trained for 25 epochs"
+    optimizer:
+      name: SGD            # SGD was used, with momentum 0.9
+      learning_rate: 0.001 # "With a learning rate of 0.001"
+      momentum: 0.9        # Standard SGD momentum
+      weight_decay: 0.0    # Not mentioned in thesis
+    pos_weight: 1
+    scheduler:
+      enabled: false       # "A learning rate scheduler was not employed"
+    early_stopping:
+      enabled: true
+      patience: 15         # "Early stopping enforced after 15 epochs"
+    transforms:
+      training:                # E1: no augmentation -- deterministic, identical to the validation transform
+        resize: 256
+        center_crop: 224
+
+  multimodal:
+    architecture:
+      name: multimodal
+      pretrained: true
+      feature_extraction: false
+    batch_size: 64        # "With a learning rate of 0.001 and a batch size of 128"
+    dropout_rate: 0.0      # "Due to the already higher validation loss than the training loss, the author decided not to test other methods like dropout"
+    embedding_dim: 1536    # Dimension der Tile-Embeddings (GigaPath)
+    proj_dim: 256          # Projection dimension für multimodal fusion
+    epochs: 25             # "It was trained for 25 epochs"
+    optimizer:
+      name: SGD            # SGD was used, with momentum 0.9
+      learning_rate: 0.001 # "With a learning rate of 0.001"
+      momentum: 0.9        # Standard SGD momentum
+      weight_decay: 0.0    # Not mentioned in thesis
+    pos_weight: 1
+    scheduler:
+      enabled: false       # "A learning rate scheduler was not employed"
+    early_stopping:
+      enabled: true
+      patience: 15         # "Early stopping enforced after 15 epochs"
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true  # Not specified as used in the optimal combination
+        random_vertical_flip: true    # Not specified as used in the optimal combination
+        color_jitter:
+          enabled: false               # "Color jitter augmentation seems to have a negative impact"
+        random_rotation:               # "Random rotation and gaussian blur had a positive effect"
+          enabled: true
+          degrees: 180
+        random_blur:                   # "The most effective combination, consisting of random blur and random rotations"
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false               # Not specified as used in the optimal combination
+          
+  # DenseNet121 configuration
+  densenet121:
+    architecture:
+      name: densenet121
+      pretrained: true
+      feature_extraction: false
+    batch_size: 32
+    dropout_rate: 0.16141698206729396
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001776588643563922
+      weight_decay: 3.43776260302271e-05
+    pos_weight: 0.4129621502243413
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 30
+    early_stopping:
+      enabled: true
+      patience: 10
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+          
+  # DenseNet169 configuration
+  densenet169:
+    architecture:
+      name: densenet169
+      pretrained: true
+      feature_extraction: false
+    batch_size: 64
+    dropout_rate: 0.2279982747102781
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00018598867620316553
+      weight_decay: 0.00014621550781008749
+    pos_weight: 0.4171650060999368
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 30
+    early_stopping:
+      enabled: true
+      patience: 10
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  # Other models remain unchanged
+  gigapath:
+    architecture:
+      name: gigapath
+      pretrained: true
+      feature_extraction: true
+    # --- E1 (model family): shared protocol with MIL and graph -- docs/experiments/cross_domain_experiments.md, E1 ---
+    # Differs from the GSDB-parity block in configs/model_config.yaml exactly in:
+    # cudnn_allow_tf32 (removed), gsdb_parity_train, gsdb_parity_eval, color_normalization,
+    # transforms.training (no augmentation). All other hyperparameters are unchanged (Höfling/GSDB).
+    he_only: true              # unchanged: train/val on HE only (test always on all stains)
+    mixed_precision: true      # unchanged (GSDB): fp16 AMP
+    gradient_clipping: null    # unchanged (GSDB): no clipping
+    auto_pos_weight: false     # unchanged (GSDB): pos_weight from config
+    max_white_fraction: 0.9    # unchanged (GSDB): keep tiles with < 90% white pixels; MIL uses the same value
+    num_workers: 8             # unchanged
+    gsdb_parity_train: false   # E1: master_code training (train_model_image) -- needed for Macenko / no augmentation
+    gsdb_parity_eval: false    # E1: shared slide protocol (as MIL / graph)
+    color_normalization:       # E1: Macenko exactly as in the graph build (context_aware_pipeline_gsdb_inflammation_noaug)
+      method: macenko
+      target_stats_path: configs/graph_build/reference_stats/gsdb_scanner1_lab.json
+      macenko_rescale_concentration: false
+    batch_size: 64
+    dropout_rate: 0.2081275310582518
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0009145189579997262
+      weight_decay: 0.0002035289719150956
+    pos_weight: 0.46488177740040443
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:                # E1: no augmentation -- deterministic, identical to the validation transform
+        resize: 256
+        center_crop: 224
+
+  convnext_large:
+    architecture:
+      name: convnext_large
+      pretrained: true
+      feature_extraction: false
+    batch_size: 64
+    dropout_rate: 0.048859358804960035
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00041168483134304085
+      weight_decay: 8.026928361624194e-05
+    pos_weight: 0.571784214645483
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.7, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  swin_v2_b:
+    architecture:
+      name: swin_v2_b
+      pretrained: true
+      feature_extraction: false
+    batch_size: 96
+    dropout_rate: 0.28618971590868336
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0003887159105644
+      weight_decay: 5.240314640039309e-05
+    pos_weight: 0.5738321900192714
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+# Tissue task configurations
+tissue:
+  # ResNet18 configuration - Updated based on Höfling's thesis (Section 8.2.2)
+  resnet18:
+    architecture:
+      name: resnet18
+      pretrained: true
+      feature_extraction: false
+    # --- GSDB parity (patch-level CNN) — reproduces GSDB/src/models/train.py 1:1 ---
+    he_only: true              # GSDB trains on HE slides only (*_HE.csv + stain == HE)
+    mixed_precision: true      # GSDB always trains with fp16 AMP on CUDA
+    gradient_clipping: null    # GSDB's AMP path does not clip gradients
+    auto_pos_weight: false     # use pos_weight from config instead of neg/pos from train split
+    max_white_fraction: 0.9    # GSDB keeps tiles with < 90% white pixels
+    num_workers: 8             # GSDB DataLoader workers
+    cudnn_allow_tf32: true     # PyTorch default in GSDB (master_code disables TF32 globally)
+    gsdb_parity_train: true    # train with GSDB's train.py code, bit-identical (src/pipelines/gsdb_parity_train.py)
+    gsdb_parity_eval: true     # evaluate with GSDB's evaluate.py logic (src/pipelines/gsdb_parity_eval.py)
+    batch_size: 64            # "Which had a batch size of 64"
+    dropout_rate: 0.0         # "Implementing dropout... did not further reduce the validation loss"
+    epochs: 60                # "Each model underwent training for a total of 60 epochs"
+    optimizer:
+      name: SGD                # "SGD with a momentum value set to 0.9 was chosen as optimizer"
+      learning_rate: 0.001     # "With a learning rate of 0.001 and a batch size of 64"
+      momentum: 0.9            # "SGD with a momentum value set to 0.9"
+      weight_decay: 0.0        # "Implementing... weight decay did not further reduce the validation loss"
+    pos_weight: 1
+    scheduler:
+      enabled: false           # "Implementing... learning rate schedulers... did not further reduce the validation loss"
+    early_stopping:
+      enabled: true 
+      patience: 15             # "Early stopping implemented after 15 epochs"
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true   # "The most effective combination, consisting of random flips and rotation"
+        random_vertical_flip: true     # Assuming both horizontal and vertical flips
+        color_jitter:
+          enabled: false                # "Color jitter... had a negative impact on the models performance"
+        random_rotation:                # "The most effective combination, consisting of random flips and rotation"
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: false                # Not part of the optimal combination for tissue
+        random_affine:
+          enabled: false                # Not mentioned for tissue
+
+  gigapath:
+    architecture:
+      name: gigapath
+      pretrained: true
+      feature_extraction: true
+    # --- GSDB parity (patch-level CNN) — reproduces GSDB/src/models/train.py 1:1 ---
+    he_only: true              # GSDB trains on HE slides only (*_HE.csv + stain == HE)
+    mixed_precision: true      # GSDB always trains with fp16 AMP on CUDA
+    gradient_clipping: null    # GSDB's AMP path does not clip gradients
+    auto_pos_weight: false     # use pos_weight from config instead of neg/pos from train split
+    max_white_fraction: 0.9    # GSDB keeps tiles with < 90% white pixels
+    num_workers: 8             # GSDB DataLoader workers
+    cudnn_allow_tf32: true     # PyTorch default in GSDB (master_code disables TF32 globally)
+    gsdb_parity_train: true    # train with GSDB's train.py code, bit-identical (src/pipelines/gsdb_parity_train.py)
+    gsdb_parity_eval: true     # evaluate with GSDB's evaluate.py logic (src/pipelines/gsdb_parity_eval.py)
+    batch_size: 48
+    dropout_rate: 0.23559098271006373
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0009327695894177215
+      weight_decay: 9.532219581535932e-05
+    pos_weight: 0.5513518235330156
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: false
+        random_affine:
+          enabled: false
+
+  convnext_large:
+    architecture:
+      name: convnext_large
+      pretrained: true
+      feature_extraction: false
+    batch_size: 64
+    dropout_rate: 0.2007109001252564
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0004285120862999567
+      weight_decay: 0.00021304603401432276
+    pos_weight: 0.5509766118518091
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: false
+        random_affine:
+          enabled: false
+
+  swin_v2_b:
+    architecture:
+      name: swin_v2_b
+      pretrained: true
+      feature_extraction: false
+    batch_size: 64
+    dropout_rate: 0.22445885530254048
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00043720321230670184
+      weight_decay: 4.600053260517991e-05
+    pos_weight: 0.7125368666699552
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: false
+        random_affine:
+          enabled: false
+
+  densenet121:
+    architecture:
+      name: densenet121
+      pretrained: true
+      feature_extraction: false
+    batch_size: 64
+    dropout_rate: 0.0612284423470278
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00018943422706671847
+      weight_decay: 1.0775930465603428e-05
+    pos_weight: 0.654171439017536
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: false
+        random_affine:
+          enabled: false
+
+  densenet169:
+    architecture:
+      name: densenet169
+      pretrained: true
+      feature_extraction: false
+    batch_size: 56
+    dropout_rate: 0.14995492705735047
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001903232089874498
+      weight_decay: 0.0005858839659181131
+    pos_weight: 0.5703967916940276
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation: 
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: false
+        random_affine:
+          enabled: false

@@ -1,0 +1,9 @@
+extends: ./simple_runtime.yaml
+
+graph_build:
+  build_config: ../graph_build/context_aware_pipeline.yaml
+  visualize_each_graph: true
+
+  dataset: camelyon
+  model: prov_gigapath
+  seed: 44

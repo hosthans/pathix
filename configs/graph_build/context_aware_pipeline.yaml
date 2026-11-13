@@ -1,0 +1,29 @@
+extends: ./simple_pipeline.yaml
+
+graph_build:
+  build:
+    pipeline: dynamical
+
+    patch_size: 128
+    stride: 128
+    tissue_frac_min: 0.08
+    sat_min: 35.0
+    val_max: 195.0
+    mask_color_norm_strength: 0.65
+    morph_kernel: 7.0
+    min_component_area: 250.0
+
+    k_patch: 12
+    k_region: 5
+
+  creation:
+    use_annotations: true
+    annotation_type: asap
+    build_slides_without_annotations: true
+
+    filter_graph_with_annotations: false
+
+    use_annotation_labels: true
+    annotation_label_source: group
+
+    node_creation_mode: patch_encoder

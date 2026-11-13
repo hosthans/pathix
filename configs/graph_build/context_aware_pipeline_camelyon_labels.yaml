@@ -1,0 +1,25 @@
+extends: ./context_aware_pipeline.yaml
+
+graph_build:
+  creation:
+    label_fields:
+      - name: status
+        node_types: [region, patch, slide]
+        source: annotation_primary
+        collapse: positive_negative
+        slide_aggregation: majority_mixed
+        mixed_threshold: 0.9
+      - name: subtype
+        node_types: [slide]
+        source: csv_join
+        csv_path: /data/local/hweber/camelyon17/stages.csv
+        csv_key_column: patient
+        csv_value_column: stage
+        join_on: slide_stem
+      - name: stage
+        node_types: [slide]
+        source: csv_join
+        csv_path: /data/local/hweber/camelyon17/stages.csv
+        csv_key_column: patient
+        csv_value_column: stage
+        join_on: patient_zip

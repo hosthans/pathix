@@ -1,0 +1,15 @@
+data/*
+results/*s
+
+# keep a placeholder so Git tracks the dirs
+!data/.gitkeep
+!results/.gitkeep
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+huggingface_login.py

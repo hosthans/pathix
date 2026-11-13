@@ -1,0 +1,10 @@
+extends: ./context_aware_runtime.yaml
+graph_build:
+  build_config: ../graph_build/context_aware_pipeline_camelyon_domain_robust_labels.yaml
+  seed: 42
+  build:
+    patch_size: 256
+    stride: 256
+    feature_batch_size: 1500
+    feature_prep_workers: 4
+  overwrite: false

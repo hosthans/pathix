@@ -1,0 +1,41 @@
+extends: ./context_aware_pipeline.yaml
+
+graph_build:
+  build:
+    feature_transforms:
+      - name: color_normalize
+        method: macenko
+        target_stats_path: configs/graph_build/reference_stats/gsdb_scanner1_lab.json
+        macenko_rescale_concentration: false
+      - name: stain_augment
+        sigma_alpha: 0.2
+        sigma_beta: 0.2
+        p: 0.5
+      - name: gaussian_blur
+        max_sigma: 1.2
+        p: 0.2
+      - name: jpeg_compression
+        quality_min: 40
+        quality_max: 95
+        p: 0.2
+    transform_seed: 42
+    target_patch_size_um: null
+    auto_detect_target_patch_size_um: true
+    feature_image_size: 224
+    feature_batch_size: 64
+    feature_prep_workers: 4
+    cv2_num_threads: 1
+    blas_num_threads: 1
+    feature_redundancy_check: true
+
+  creation:
+    annotation_type: geojson
+    use_precomputed_mask: false
+    masks_dir: null
+    annotation_label_source: classification
+    annotation_classification_field: inflammation_status
+    build_slides_without_annotations: false
+    build_slides_with_mismatched_annotations: false
+    extra_annotation_classification_fields:
+      - tissue_type
+    patch_patch_edge_mode: semantic_equality

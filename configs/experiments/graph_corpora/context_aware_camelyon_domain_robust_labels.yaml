@@ -1,0 +1,105 @@
+# FLATTENED SNAPSHOT -- no `extends`, no `build_config`: every setting is written out here.
+# Generated from  runtime: context_aware_camelyon_domain_robust_labels.yaml -> context_aware_runtime.yaml -> simple_runtime.yaml
+#                 build:   context_aware_pipeline_camelyon_domain_robust_labels.yaml -> context_aware_pipeline_camelyon_labels.yaml -> context_aware_pipeline.yaml -> simple_pipeline.yaml
+# Same effect as configs/graph_runtime/context_aware_camelyon_domain_robust_labels.yaml (verified field by field with build_graph._load_config).
+# Build with: python -u src/entrypoint/build_graph.py --config <this file>. Flattened: do not edit; regenerate if the original changes.
+graph_build:
+  dataset: camelyon
+  model: prov_gigapath
+  seed: 42
+  overwrite: false
+  quiet_external_loggers: true
+  worker_start_method: spawn
+  worker_queue_maxsize: 1
+  worker_result_poll_sec: 20
+  worker_max_restarts_per_slide: 2
+  graph_retry_attempts: 2
+  csv: null
+  csv_path: /data/local/hweber/camelyon17/stages.csv
+  slide_name_column: patient
+  slide_dir: data/raw/camelyon/images
+  visualize_each_graph: false
+  build:
+    pipeline: dynamical
+    patch_level: 0
+    patch_size: 256
+    stride: 256
+    k_patch: 12
+    k_region: 5
+    mask_enable_color_normalization: true
+    mask_color_norm_strength: 0.65
+    mask_use_adaptive_hsv: true
+    mask_sat_percentile: 35.0
+    mask_val_percentile: 99.0
+    sat_min: 35.0
+    val_max: 195.0
+    tissue_frac_min: 0.08
+    morph_kernel: 7.0
+    min_component_area: 250.0
+    mask_drop_border_components: true
+    mask_border_margin_px: 16
+    mask_require_core_connection_for_border_components: true
+    mask_core_margin_px: 64
+    feature_transforms:
+    - name: color_normalize
+      method: macenko
+      target_stats_path: configs/graph_build/reference_stats/camelyon_train_lab.json
+      macenko_rescale_concentration: false
+    - name: stain_augment
+      sigma_alpha: 0.2
+      sigma_beta: 0.2
+      p: 0.5
+    - name: gaussian_blur
+      max_sigma: 1.2
+      p: 0.2
+    - name: jpeg_compression
+      quality_min: 40
+      quality_max: 95
+      p: 0.2
+    transform_seed: 42
+    feature_batch_size: 1500
+    feature_prep_workers: 4
+    cv2_num_threads: 1
+    blas_num_threads: 1
+    feature_redundancy_check: true
+  creation:
+    annotation_type: asap
+    mask_type: slide
+    use_annotations: true
+    use_precomputed_mask: true
+    annotations_dir: /data/local/hweber/camelyon17/annotations
+    masks_dir: /data/local/hweber/camelyon17/masks
+    node_creation_mode: patch_encoder
+    patch_patch_edge_mode: knn
+    region_region_edge_mode: knn
+    cell_cell_edge_mode: knn
+    build_slides_without_annotations: true
+    filter_graph_with_annotations: false
+    use_annotation_labels: true
+    annotation_label_source: group
+    label_fields:
+    - name: status
+      node_types:
+      - region
+      - patch
+      - slide
+      source: annotation_primary
+      collapse: positive_negative
+      slide_aggregation: majority_mixed
+      mixed_threshold: 0.9
+    - name: subtype
+      node_types:
+      - slide
+      source: csv_join
+      csv_path: /data/local/hweber/camelyon17/stages.csv
+      csv_key_column: patient
+      csv_value_column: stage
+      join_on: slide_stem
+    - name: stage
+      node_types:
+      - slide
+      source: csv_join
+      csv_path: /data/local/hweber/camelyon17/stages.csv
+      csv_key_column: patient
+      csv_value_column: stage
+      join_on: patient_zip

@@ -1,0 +1,42 @@
+{
+  "stain_matrix": [
+    [
+      0.6313738631727839,
+      0.5905005935778558,
+      0.5026689704830355
+    ],
+    [
+      0.47562354789870603,
+      0.8581833553720943,
+      0.19314131936626347
+    ]
+  ],
+  "max_concentrations": [
+    1.695548659599789,
+    1.310050601036587
+  ],
+  "means": [
+    131.07765608035547,
+    150.98448692851917,
+    104.32855390565993
+  ],
+  "stds": [
+    70.12757329231935,
+    13.962144283103315,
+    15.831328031862936
+  ],
+  "meta": {
+    "dataset": "gsdb",
+    "split_csv": "data/splits/gsdb/seed_42/train.csv",
+    "scanner_id": 1,
+    "stain": null,
+    "num_slides_used": 20,
+    "num_patches": 331,
+    "num_pixels": 5423104,
+    "patch_size": 128,
+    "patch_level": 0,
+    "seed": 42,
+    "macenko_beta": 0.15,
+    "macenko_angular_percentile": 1.0
+  }
+}

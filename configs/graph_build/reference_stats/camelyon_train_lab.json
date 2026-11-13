@@ -1,0 +1,42 @@
+{
+  "stain_matrix": [
+    [
+      0.5137931942960937,
+      0.8288810516662027,
+      0.22129788901782674
+    ],
+    [
+      0.5074628049935999,
+      0.6384639130198185,
+      0.578658218052288
+    ]
+  ],
+  "max_concentrations": [
+    1.1173722297729818,
+    0.7924253240235787
+  ],
+  "means": [
+    166.33353653898592,
+    146.51817403633297,
+    115.89337072149432
+  ],
+  "stds": [
+    64.1668315584486,
+    14.333469218348862,
+    12.790396831029387
+  ],
+  "meta": {
+    "dataset": "camelyon",
+    "split_csv": "data/splits/camelyon/seed_42/train.csv",
+    "scanner_id": null,
+    "stain": null,
+    "num_slides_used": 20,
+    "num_patches": 727,
+    "num_pixels": 47644672,
+    "patch_size": 256,
+    "patch_level": 0,
+    "seed": 42,
+    "macenko_beta": 0.15,
+    "macenko_angular_percentile": 1.0
+  }
+}

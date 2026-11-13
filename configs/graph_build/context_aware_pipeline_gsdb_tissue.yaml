@@ -1,0 +1,23 @@
+extends: ./context_aware_pipeline_gsdb.yaml
+graph_build:
+  build:
+    region_construction_mode: annotation_driven
+
+  creation:
+    annotation_classification_field: tissue_type
+    extra_annotation_classification_fields:
+      - inflammation_status
+    label_fields:
+      - name: tissue_type
+        node_types: [region, patch, slide]
+        source: annotation_primary
+        collapse: null
+        slide_aggregation: majority_mixed
+        mixed_threshold: 0.9
+      - name: status
+        node_types: [region, patch, slide]
+        source: annotation_extra
+        extra_field: inflammation_status
+        collapse: null
+        slide_aggregation: majority_mixed
+        mixed_threshold: 0.9

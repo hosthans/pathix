@@ -1,0 +1,1067 @@
+# E1 MIL with the Prov-GigaPath tile encoder (--feature_extractor gigapath): identical to model_config_mil.yaml
+# (Macenko, tile filter, bags, transforms, optimizer, schedule) except that the encoder is never unfrozen
+# (inflammation.attention_mil.fine_tuning: unfreeze_backbone_epoch null) -- the same frozen encoder as the
+# patch-GigaPath (src/models/gigapath.py).
+
+# Common configuration across all models and tasks
+common:
+  deterministic: true
+  mixed_precision: false
+  save_frequency: 5
+  gradient_clipping: 1.0
+  seed: 42
+  device: "cuda:0"
+  fine_tuning:
+    enabled: false
+    pretrained_checkpoint: null
+    strict_load: false
+    freeze_all: false
+    freeze_backbone: false
+    freeze_feature_extractor: false
+    freeze_layers: []
+    trainable_layers: []
+    unfreeze_backbone_epoch: null
+    fine_tune_lr: null
+  transforms:
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    validation:
+      resize: 256
+      center_crop: 224
+
+dataset_settings:
+  gsdb:
+    label_mode: binary
+    num_classes: 1
+  camelyon:
+    # Default CAMELYON setup for this config family (MIL/GNN runs) is binary.
+    # Use CLI overrides if you intentionally run multiclass experiments.
+    label_mode: binary
+    num_classes: 1
+
+# Model architecture feature dimensions
+architectures:
+  attention_mil:
+    output_features: 256  # instance_dim from AttentionMIL
+  wsigraph:
+    output_features: 256  # hidden_dim from WSIGraphModel
+  wsigraph-pretraining:
+    output_features: 256  # hidden_dim from WSIGraphPretrainingModel
+  graph_v2:
+    output_features: 256  # hidden_dim from WSIGraphModelV2
+  simple_gcn:
+    output_features: 256  # hidden_dim from SimpleGCNModel
+  hetero_wsi:
+    output_features: 256  # hidden_dim from WSIHeteroGraphModel
+  hetero_wsi_v2:
+    output_features: 256  # hidden_dim from WSIHeteroGraphModelV2
+  hetero_wsi_adaptive:
+    output_features: 256  # hidden_dim from WSIHeteroGraphModelAdaptive
+  hetero_wsi_dynamical:
+    output_features: 192  # hidden_dim from WSIHeteroGraphModelDynamical
+  
+lymph:
+
+  simple_gcn:
+    architecture:
+      name: simple_gcn
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: false
+    gradient_clipping: 1.0
+    dropout_rate: 0.2
+    hidden_dim: 192
+    num_layers: 2
+    k: 8
+    normalize_pos: true
+    epochs: 70
+    in_dim: 1536
+    auto_pos_weight: false
+    balanced_sampling: false
+    max_patch_nodes_for_full_forward: 16000
+    max_patch_edges_for_full_forward: 320000
+    pretraining_consistency_weight: 0.0
+    region_only_warn_every: 10
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.001
+      momentum: 0.9
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 70
+    early_stopping:
+      enabled: true
+      patience: 20
+      monitor_metric: auc
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  tissue_region_net:
+    architecture:
+      name: tissue_region_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    batch_size: 1
+    val_batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: false
+    gradient_clipping: 1.0
+    dropout_rate: 0.20
+    hidden_dim: 320
+    num_layers: 4
+    heads: 4
+    edge_dropout_p: 0.05
+    region_aux_weight: 0.24
+    patch_hidden_dim: 320
+    patch_num_layers: 2
+    patch_aux_weight: 0.30
+    patch_aux_pos_weight_cap: 6.0
+    patch_edge_dropout_p: 0.05
+    max_patch_nodes_for_full_forward: 6000
+    max_patch_edges_for_full_forward: 150000
+    k: 10
+    normalize_pos: true
+    epochs: 80
+    in_dim: 1536
+    auto_pos_weight: true
+    balanced_sampling: true
+    strict_graph_name_match: false
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.001
+      momentum: 0.9
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 80
+    early_stopping:
+      enabled: true
+      patience: 24
+      monitor_metric: auc
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  wsigraph:
+    architecture:
+      name: wsigraph
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: true
+    gradient_clipping: 1.0
+    dropout_rate: 0.2
+    hidden_dim: 256
+    num_layers: 2
+    k: 8
+    normalize_pos: true
+    epochs: 70
+    in_dim: 1536
+    auto_pos_weight: true
+    balanced_sampling: true
+    max_patch_nodes_for_full_forward: 16000
+    max_patch_edges_for_full_forward: 320000
+    strict_graph_name_match: false
+    pretraining_consistency_weight: 0.20
+    region_only_warn_every: 10
+    region_aux_weight: 0.06
+    patch_aux_weight: 0.03
+    max_patch_aux_nodes: 4096
+    micro_topk_ratio: 0.06
+    micro_logit_weight: 0.45
+    edge_gate_strength: 0.30
+    min_patches_per_region_in_large_graph: 1
+    sanitize_non_finite: true
+    logit_clamp_value: 30.0
+    val_batch_size: 1
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.001
+      momentum: 0.9
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 70
+    early_stopping:
+      enabled: true
+      patience: 20
+      monitor_metric: auc
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  wsigraph-pretraining:
+    architecture:
+      name: wsigraph
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    in_dim: 1536
+    output_features: 1536
+    batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: false
+    gradient_clipping: 1.0
+    hidden_dim: 256
+    num_layers: 2
+    k: 8
+    normalize_pos: true
+    dropout_rate: 0.2
+    epochs: 80
+    auto_pos_weight: true
+    balanced_sampling: true
+    max_patch_nodes_for_full_forward: 16000
+    max_patch_edges_for_full_forward: 320000
+    strict_graph_name_match: false
+    pretraining_consistency_weight: 0.30
+    region_only_warn_every: 10
+    region_aux_weight: 0.08
+    patch_aux_weight: 0.04
+    max_patch_aux_nodes: 4096
+    micro_topk_ratio: 0.06
+    micro_logit_weight: 0.18
+    edge_gate_strength: 0.20
+    patch_edge_dropout_p: 0.12
+    region_edge_dropout_p: 0.08
+    min_patches_per_region_in_large_graph: 1
+    sanitize_non_finite: true
+    logit_clamp_value: 30.0
+    val_batch_size: 1
+    optimizer:
+      name: AdamW
+      learning_rate: 5e-5
+      weight_decay: 0.01
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: ReduceLROnPlateau
+      factor: 0.5
+      patience: 5
+    early_stopping:
+      enabled: true
+      patience: 10
+      monitor_metric: auc
+      min_delta: 0.002
+
+  hetero_wsi_adaptive:
+    architecture:
+      name: hetero_wsi_adaptive
+      pretrained: false
+      feature_extraction: false
+    hidden_dim: 64
+    num_layers: 2
+    heads: 2
+    drop_edge_p: 0.10
+    in_dim: 1537
+    batch_size: 2
+    dropout_rate: 0.15
+    epochs: 90
+    pos_weight: 6.0
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001
+      weight_decay: 0.0005
+      #momentum: 0.9
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 90
+    early_stopping:
+      enabled: true
+      patience: 16
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: true
+          brightness: 0.2
+          contrast: 0.2
+          saturation: 0.2
+          hue: 0.1
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  hetero_wsi_dynamical:
+    architecture:
+      name: hetero_wsi_dynamical
+      pretrained: false
+      feature_extraction: false
+    hidden_dim: 128
+    num_layers: 2
+    heads: 4
+    drop_edge_p: 0.25         # erhöht von 0.15: stärkere Graph-Regularisierung
+    use_edge_features: true
+    learnable_edge_features: true
+    use_hierarchical_edge_features: true
+    edge_semantic_weight: 0.25
+    in_dim: 1537
+    batch_size: 1
+    grad_accum_steps: 4       # erhöht von 2: effektiver Batch = 4 Slides (stabiler)
+    dropout_rate: 0.50        # erhöht von 0.35: stärkere Regularisierung bei 60 Slides
+    epochs: 90
+    pos_weight: 2.0
+    auto_pos_weight: true
+    mixed_precision: false    # fp16-Autocast erzeugt bei diesem Modell (kein Activation-/Logit-Sanitizing) non-finite Gradients
+    max_base_nodes_for_full_forward: 12000   # cappt Patch/Cell-Knoten pro Slide gegen OOM bei sehr großen WSIs
+    max_base_edges_for_full_forward: 240000
+    min_base_nodes_per_region_in_large_graph: 1
+    balanced_sampling: true   # war false: stellt sicher dass positive Slides in jedem Batch vorkommen
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.005     # erhöht von 0.001: stärkere L2-Regularisierung
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 90               # war 30: ein voller Zyklus über alle Epochen, kein LR-Restart-Chaos
+    early_stopping:
+      enabled: true
+      patience: 20            # erhöht von 14: mehr Geduld nach LR-Minimum
+      monitor_metric: auc
+      min_delta: 0.005        # war 0.1: stoppt nur wenn wirklich 90 Epochen kein Fortschritt
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: true
+          brightness: 0.15
+          contrast: 0.15
+          saturation: 0.15
+          hue: 0.05
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+# Inflammation task configurations
+inflammation:
+  # Registered here (mirroring lymph.tissue_region_net above) purely so Validator.available_models()
+  # allows --task inflammation --architecture tissue_region_net --model_type gnn -- that check reads
+  # this file's/model_config.yaml's task->architecture keys, NOT whatever --config_name points at.
+  # These hyperparameter values are NOT what actually trains: any real run passes --config_name
+  # (e.g. model_config_tissue_region_segmentation_region_monitorloss_pseudolabel), which is loaded
+  # by config_loader.load_config_new independently of this file and wins entirely. Kept as a
+  # byte-for-byte copy of lymph.tissue_region_net so this stub is a sane fallback in the (currently
+  # unused) case someone runs without --config_name.
+  tissue_region_net:
+    architecture:
+      name: tissue_region_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    batch_size: 1
+    val_batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: false
+    gradient_clipping: 1.0
+    dropout_rate: 0.20
+    hidden_dim: 320
+    num_layers: 4
+    heads: 4
+    edge_dropout_p: 0.05
+    region_aux_weight: 0.24
+    patch_hidden_dim: 320
+    patch_num_layers: 2
+    patch_aux_weight: 0.30
+    patch_aux_pos_weight_cap: 6.0
+    patch_edge_dropout_p: 0.05
+    max_patch_nodes_for_full_forward: 6000
+    max_patch_edges_for_full_forward: 150000
+    k: 10
+    normalize_pos: true
+    epochs: 80
+    in_dim: 1536
+    auto_pos_weight: true
+    balanced_sampling: true
+    strict_graph_name_match: false
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.001
+      momentum: 0.9
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 80
+    early_stopping:
+      enabled: true
+      patience: 24
+      monitor_metric: auc
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null
+
+  # Registered here purely so Validator.available_models() allows --task inflammation
+  # --architecture region_slide_net --model_type gnn -- see the tissue_region_net stub's comment
+  # above for why. Real hyperparameters come from --config_name model_config_region_slide_net,
+  # loaded independently by config_loader.load_config_new; this stub is never read when
+  # --config_name is passed (always, for any real run of this architecture).
+  region_slide_net:
+    architecture:
+      name: region_slide_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    batch_size: 6
+    val_batch_size: 6
+    in_dim: 1536
+    hidden_dim: 96
+    num_layers: 2
+    heads: 4
+    dropout_rate: 0.4
+    edge_dropout_p: 0.1
+    epochs: 100
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001
+      weight_decay: 0.01
+    early_stopping:
+      enabled: true
+      patience: 15
+      min_delta: 0.001
+
+  attention_mil:
+    architecture:
+      name: attention_mil
+      pretrained: true
+      feature_extraction: true   # Backbone zuerst einfrieren
+    # --- E1 (model family): same input pipeline as patch-CNN and graph -- docs/experiments/cross_domain_experiments.md, E1 ---
+    color_normalization:       # E1: Macenko exactly as in the graph build (context_aware_pipeline_gsdb_inflammation_noaug)
+      method: macenko
+      target_stats_path: configs/graph_build/reference_stats/gsdb_scanner1_lab.json
+      macenko_rescale_concentration: false
+    max_white_fraction: 0.9    # same tile filter as the patch-CNN and GSDB: keep tiles with < 90% white pixels
+    batch_size: 6        # = Slides pro Batch (erhöht für bessere Stabilität)
+    dropout_rate: 0.3    # Dropout für MIL zur Regularisierung
+    instance_dim: 256    # Dimension für instance projection
+    tile_embed_dim: 1536 # Dimension der Tile-Embeddings (GigaPath)
+    epochs: 50
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001
+      weight_decay: 0.0001
+      momentum: 0.9
+    pos_weight: 0.45   # Angepasst für Inflammation Task
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 50
+    early_stopping:
+      enabled: true
+      patience: 15
+    fine_tuning:
+      unfreeze_backbone_epoch: null  # E1 MIL-GigaPath: encoder stays frozen (as the patch-GigaPath)
+      fine_tune_lr: null
+    transforms:
+      training:                # E1: no augmentation -- deterministic, identical to the validation transform
+        resize: 256
+        center_crop: 224
+
+  simple_gcn:
+    architecture:
+      name: simple_gcn
+      pretrained: true
+      feature_extraction: true   # Backbone zuerst einfrieren
+    batch_size: 4        # = Slides pro Batch (erhöht für bessere Stabilität)
+    dropout_rate: 0.2    # Dropout für Graph zur Regularisierung
+    hidden_dim: 256      # Hidden dimension für Graph layers
+    num_layers: 3        # Anzahl der Graph Conv layers
+    k: 8
+    normalize_pos: true
+    epochs: 60
+    in_dim: 1536
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001
+      weight_decay: 0.0001
+      momentum: 0.9
+    pos_weight: 0.45   # Angepasst für Inflammation Task
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 60
+    early_stopping:
+      enabled: true
+      patience: 15
+    fine_tuning:
+      unfreeze_backbone_epoch: 15  # Später entfrieren für stabileres Training
+      fine_tune_lr: 0.00001
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  wsigraph:
+    architecture:
+      name: wsigraph
+      pretrained: true
+      feature_extraction: true   # Backbone zuerst einfrieren
+    batch_size: 4        # = Slides pro Batch (erhöht für bessere Stabilität)
+    dropout_rate: 0.2    # Dropout für Graph zur Regularisierung
+    hidden_dim: 256      # Hidden dimension für Graph layers
+    num_layers: 3        # Anzahl der Graph Conv layers
+    k: 8
+    normalize_pos: true
+    epochs: 60
+    in_dim: 1537
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001
+      weight_decay: 0.0001
+      momentum: 0.9
+    pos_weight: 0.45   # Angepasst für Inflammation Task
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 60
+    early_stopping:
+      enabled: true
+      patience: 15
+    fine_tuning:
+      unfreeze_backbone_epoch: 15  # Später entfrieren für stabileres Training
+      fine_tune_lr: 0.00001
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  graph_v2:
+    architecture:
+      name: graph_v2
+      pretrained: true
+      feature_extraction: true   # Backbone zuerst einfrieren
+    batch_size: 4        # = Slides pro Batch (erhöht für bessere Stabilität)
+    dropout_rate: 0.25   # Dropout für Graph v2 zur Regularisierung
+    hidden_dim: 256      # Hidden dimension für Graph layers
+    num_layers: 4        # Anzahl der Graph Conv layers
+    heads: 4             # Anzahl der Attention Heads (GATv2Conv)
+    k: 8
+    normalize_pos: true
+    epochs: 60
+    in_dim: 1537
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00015
+      weight_decay: 0.0001
+      momentum: 0.9
+    pos_weight: 0.45   # Angepasst für Inflammation Task
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 60
+    early_stopping:
+      enabled: true
+      patience: 15
+    fine_tuning:
+      unfreeze_backbone_epoch: 15  # Später entfrieren für stabileres Training
+      fine_tune_lr: 0.00001
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  hetero_wsi:
+    architecture:
+      name: hetero_wsi
+      pretrained: true
+      feature_extraction: true   
+    batch_size: 4       
+    dropout_rate: 0.25  
+    hidden_dim: 256  
+    num_layers: 3     
+    use_edge_features: true
+    learnable_edge_features: false
+    use_hierarchical_edge_features: false
+    edge_semantic_weight: 0.25
+    k: 8
+    normalize_pos: true
+    epochs: 60
+    in_dim: 1537
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00015
+      weight_decay: 0.0001
+      momentum: 0.9
+    pos_weight: 0.45 
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 60
+    early_stopping:
+      enabled: true
+      patience: 15
+    fine_tuning:
+      unfreeze_backbone_epoch: 15  
+      fine_tune_lr: 0.00001
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  hetero_wsi_v2:
+    architecture:
+      name: hetero_wsi_v2
+      pretrained: true
+      feature_extraction: true
+    # --- Model hyperparameters ---
+    hidden_dim: 256          # Node embedding dimension throughout all GNN layers
+    num_layers: 3            # Number of GNN iterations (3 phases each: spatial / bottom-up / top-down)
+    heads: 4                 # GATv2 attention heads (hidden_dim must be divisible by heads)
+    drop_edge_p: 0.1         # DropEdge probability for cross-scanner robustness
+    use_edge_features: true
+    learnable_edge_features: true
+    use_hierarchical_edge_features: true
+    edge_semantic_weight: 0.25
+    in_dim: 1537             # Kept for API compatibility; actual input dim resolved via LazyLinear
+    # --- Training ---
+    batch_size: 2            # Graphs per batch (V2 is heavier: 3 HeteroConvs + JK + CrossAttn)
+    dropout_rate: 0.2        # Applied after each GNN phase and in the classifier head
+    epochs: 80               # More epochs to leverage the richer model capacity
+    # --- Loss ---
+    pos_weight: 0.45         # Binary cross-entropy positive class weight for inflammation
+    # --- Optimizer ---
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001  # Conservative LR; model has many more parameters than hetero_wsi
+      weight_decay: 0.0001   # L2 regularization
+      momentum: 0.9          # Unused by AdamW, kept for schema consistency
+    # --- LR Scheduler ---
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 80              # Must match epochs for full cosine decay
+    # --- Early Stopping ---
+    early_stopping:
+      enabled: true
+      patience: 20           # Longer patience: model needs more epochs to fully converge
+    # --- Fine-tuning (backbone, if used) ---
+    fine_tuning:
+      unfreeze_backbone_epoch: 20   # Freeze backbone for first 20 epochs, then jointly train
+      fine_tune_lr: 0.000005        # Very small LR for backbone fine-tuning
+    # --- Image transforms (unused for pure graph models, kept for schema consistency) ---
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: false
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+  hetero_wsi_adaptive:
+    architecture:
+      name: hetero_wsi_adaptive
+      pretrained: false
+      feature_extraction: false
+    hidden_dim: 128
+    num_layers: 2
+    heads: 2
+    drop_edge_p: 0.10
+    use_edge_features: true
+    learnable_edge_features: true
+    use_hierarchical_edge_features: true
+    edge_semantic_weight: 0.25
+    in_dim: 1537
+    batch_size: 2
+    dropout_rate: 0.15
+    epochs: 90
+    pos_weight: 1.0
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0001
+      weight_decay: 0.0005
+      #momentum: 0.9
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 90
+    early_stopping:
+      enabled: true
+      patience: 16
+    transforms:
+      training:
+        random_resized_crop:
+          size: 224
+          scale: [0.8, 1.0]
+        random_horizontal_flip: true
+        random_vertical_flip: true
+        color_jitter:
+          enabled: true
+          brightness: 0.2
+          contrast: 0.2
+          saturation: 0.2
+          hue: 0.1
+        random_rotation:
+          enabled: true
+          degrees: 180
+        random_blur:
+          enabled: true
+          kernel_size: 3
+        random_affine:
+          enabled: false
+
+
+# # Tissue task configurations
+# tissue:
+#   # ResNet18 configuration - Updated based on Höfling's thesis (Section 8.2.2)
+#   resnet18:
+#     architecture:
+#       name: resnet18
+#       pretrained: true
+#       feature_extraction: false
+#     batch_size: 64            # "Which had a batch size of 64"
+#     dropout_rate: 0.0         # "Implementing dropout... did not further reduce the validation loss"
+#     epochs: 60                # "Each model underwent training for a total of 60 epochs"
+#     optimizer:
+#       name: SGD                # "SGD with a momentum value set to 0.9 was chosen as optimizer"
+#       learning_rate: 0.001     # "With a learning rate of 0.001 and a batch size of 64"
+#       momentum: 0.9            # "SGD with a momentum value set to 0.9"
+#       weight_decay: 0.0        # "Implementing... weight decay did not further reduce the validation loss"
+#     pos_weight: 1
+#     scheduler:
+#       enabled: false           # "Implementing... learning rate schedulers... did not further reduce the validation loss"
+#     early_stopping:
+#       enabled: true 
+#       patience: 15             # "Early stopping implemented after 15 epochs"
+#     transforms:
+#       training:
+#         random_resized_crop:
+#           size: 224
+#           scale: [0.8, 1.0]
+#         random_horizontal_flip: true   # "The most effective combination, consisting of random flips and rotation"
+#         random_vertical_flip: true     # Assuming both horizontal and vertical flips
+#         color_jitter:
+#           enabled: false                # "Color jitter... had a negative impact on the models performance"
+#         random_rotation:                # "The most effective combination, consisting of random flips and rotation"
+#           enabled: true
+#           degrees: 180
+#         random_blur:
+#           enabled: false                # Not part of the optimal combination for tissue
+#         random_affine:
+#           enabled: false                # Not mentioned for tissue
+
+#   gigapath:
+#     architecture:
+#       name: gigapath
+#       pretrained: true
+#       feature_extraction: true
+#     batch_size: 48
+#     dropout_rate: 0.23559098271006373
+#     epochs: 50
+#     optimizer:
+#       name: AdamW
+#       learning_rate: 0.0009327695894177215
+#       weight_decay: 9.532219581535932e-05
+#     pos_weight: 0.5513518235330156
+#     scheduler:
+#       enabled: true
+#       name: CosineAnnealingLR
+#       T_max: 50
+#     transforms:
+#       training:
+#         random_resized_crop:
+#           size: 224
+#           scale: [0.8, 1.0]
+#         random_horizontal_flip: true
+#         random_vertical_flip: true
+#         color_jitter:
+#           enabled: false
+#         random_rotation: 
+#           enabled: true
+#           degrees: 180
+#         random_blur:
+#           enabled: false
+#         random_affine:
+#           enabled: false
+
+#   convnext_large:
+#     architecture:
+#       name: convnext_large
+#       pretrained: true
+#       feature_extraction: false
+#     batch_size: 64
+#     dropout_rate: 0.2007109001252564
+#     epochs: 50
+#     optimizer:
+#       name: AdamW
+#       learning_rate: 0.0004285120862999567
+#       weight_decay: 0.00021304603401432276
+#     pos_weight: 0.5509766118518091
+#     scheduler:
+#       enabled: true
+#       name: CosineAnnealingLR
+#       T_max: 50
+#     transforms:
+#       training:
+#         random_resized_crop:
+#           size: 224
+#           scale: [0.8, 1.0]
+#         random_horizontal_flip: true
+#         random_vertical_flip: true
+#         color_jitter:
+#           enabled: false
+#         random_rotation: 
+#           enabled: true
+#           degrees: 180
+#         random_blur:
+#           enabled: false
+#         random_affine:
+#           enabled: false
+
+#   swin_v2_b:
+#     architecture:
+#       name: swin_v2_b
+#       pretrained: true
+#       feature_extraction: false
+#     batch_size: 64
+#     dropout_rate: 0.22445885530254048
+#     epochs: 50
+#     optimizer:
+#       name: AdamW
+#       learning_rate: 0.00043720321230670184
+#       weight_decay: 4.600053260517991e-05
+#     pos_weight: 0.7125368666699552
+#     scheduler:
+#       enabled: true
+#       name: CosineAnnealingLR
+#       T_max: 50
+#     transforms:
+#       training:
+#         random_resized_crop:
+#           size: 224
+#           scale: [0.8, 1.0]
+#         random_horizontal_flip: true
+#         random_vertical_flip: true
+#         color_jitter:
+#           enabled: false
+#         random_rotation: 
+#           enabled: true
+#           degrees: 180
+#         random_blur:
+#           enabled: false
+#         random_affine:
+#           enabled: false
+
+#   densenet121:
+#     architecture:
+#       name: densenet121
+#       pretrained: true
+#       feature_extraction: false
+#     batch_size: 64
+#     dropout_rate: 0.0612284423470278
+#     epochs: 50
+#     optimizer:
+#       name: AdamW
+#       learning_rate: 0.00018943422706671847
+#       weight_decay: 1.0775930465603428e-05
+#     pos_weight: 0.654171439017536
+#     scheduler:
+#       enabled: true
+#       name: CosineAnnealingLR
+#       T_max: 50
+#     transforms:
+#       training:
+#         random_resized_crop:
+#           size: 224
+#           scale: [0.8, 1.0]
+#         random_horizontal_flip: true
+#         random_vertical_flip: true
+#         color_jitter:
+#           enabled: false
+#         random_rotation: 
+#           enabled: true
+#           degrees: 180
+#         random_blur:
+#           enabled: false
+#         random_affine:
+#           enabled: false
+
+#   densenet169:
+#     architecture:
+#       name: densenet169
+#       pretrained: true
+#       feature_extraction: false
+#     batch_size: 56
+#     dropout_rate: 0.14995492705735047
+#     epochs: 50
+#     optimizer:
+#       name: AdamW
+#       learning_rate: 0.0001903232089874498
+#       weight_decay: 0.0005858839659181131
+#     pos_weight: 0.5703967916940276
+#     scheduler:
+#       enabled: true
+#       name: CosineAnnealingLR
+#       T_max: 50
+#     transforms:
+#       training:
+#         random_resized_crop:
+#           size: 224
+#           scale: [0.8, 1.0]
+#         random_horizontal_flip: true
+#         random_vertical_flip: true
+#         color_jitter:
+#           enabled: false
+#         random_rotation: 
+#           enabled: true
+#           degrees: 180
+#         random_blur:
+#           enabled: false
+#         random_affine:
+#           enabled: false

@@ -1,0 +1,24 @@
+graph_build:
+  dataset: camelyon
+  model: prov_gigapath
+  seed: 42
+
+  overwrite: false
+  quiet_external_loggers: true
+
+  worker_start_method: spawn
+  worker_queue_maxsize: 1
+  worker_result_poll_sec: 20
+  worker_max_restarts_per_slide: 2
+  graph_retry_attempts: 2
+
+  csv: null
+  csv_path: /data/local/hweber/camelyon17/stages.csv
+  slide_name_column: patient
+  slide_dir: data/raw/camelyon/images
+
+  creation:
+    annotations_dir: /data/local/hweber/camelyon17/annotations
+    masks_dir: /data/local/hweber/camelyon17/masks
+
+  build_config: ../graph_build/simple_pipeline.yaml

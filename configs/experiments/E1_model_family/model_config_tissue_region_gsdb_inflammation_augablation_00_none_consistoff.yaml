@@ -1,0 +1,225 @@
+# Train-augmentation + consistency-loss ablation, joint floor for GSDB inflammation, derived
+# from the proven-best model_config_tissue_region_segmentation_region_monitorloss_pseudolabel.yaml.
+# Combines BOTH single-factor floors already in this ablation study into one config: no
+# train_augmentations at all (like augablation_00_none) AND no consistency-regularization loss at
+# all (weight=0.0, specs=[], like consistablation_00_off) -- everything else is byte-identical to
+# the base config. This is the true "zero augmentation" control missing from the
+# one-factor-at-a-time augablation_*/consistablation_* families (those each fix the OTHER factor at
+# its base-config value while sweeping one axis); this config fixes both axes to off simultaneously.
+#
+# Use with:
+#   python -u src/entrypoint/train_model.py \
+#     --dataset gsdb --task inflammation --model_type gnn --architecture tissue_region_net \
+#     --input_type graph --embedding_type pov-gigapath \
+#     --graph_target_dir data/processed/graphs/gsdb/context_aware_gsdb_inflammation \
+#     --cached --mil --seed 42 --deterministic \
+#     --config_name model_config_tissue_region_gsdb_inflammation_augablation_00_none_consistoff
+
+common:
+  deterministic: true
+  mixed_precision: true  
+  save_frequency: 5
+  gradient_clipping: 1.0
+  seed: 42
+  device: "cuda:0" 
+  fine_tuning:
+    enabled: false
+    pretrained_checkpoint: null
+    strict_load: false
+    freeze_all: false
+    freeze_backbone: false
+    freeze_feature_extractor: false
+    freeze_layers: []
+    trainable_layers: []
+    unfreeze_backbone_epoch: null
+    fine_tune_lr: null
+
+dataset_settings:
+  camelyon:
+    label_mode: binary
+    num_classes: 1
+    negative_label_source: slide_derived
+  gsdb:
+    label_mode: binary
+    num_classes: 1
+    negative_label_source: annotation_only
+
+architectures:
+  tissue_region_net:
+    output_features: 160  
+lymph:
+  tissue_region_net:
+    architecture:
+      name: tissue_region_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    use_segmentation_training: true
+    batch_size: 1
+    val_batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: true
+    gradient_clipping: 1.0
+    num_workers: 2
+    pin_memory: true
+
+    dropout_rate: 0.35
+    hidden_dim: 160
+    num_layers: 3
+    heads: 4
+    edge_dropout_p: 0.10
+    region_aux_weight: 0.15
+    region_aux_pos_weight_cap: 6.0
+    mixed_region_weight: 0.20
+
+    patch_hidden_dim: 160
+    patch_num_layers: 2
+    patch_aux_weight: 0.15
+    patch_aux_pos_weight_cap: 6.0
+    patch_edge_dropout_p: 0.10
+    max_patch_nodes_for_full_forward: 600000
+    max_patch_edges_for_full_forward: 8000000
+
+    graph_instance_norm: false
+
+    k: 10
+    normalize_pos: true
+    epochs: 80
+    in_dim: 1536
+    auto_pos_weight: true
+    strict_graph_name_match: false
+    resplit_large_regions: true
+    resplit_target_patches_per_region: 250
+    resplit_k_region: 5
+    resplit_min_patches_per_region: 8
+    train_augmentations: []
+
+    segmentation:
+      target: region
+      region_loss_weight: 0.25   
+      slide_loss_weight: 0.75    
+      aux_loss_weight: 0.40
+      fallback_region_weight: 0.20
+      max_fallback_to_explicit_ratio: 0.75
+      prefer_explicit_only_when_available: true
+      region_slide_consistency_weight: 0.40
+      slide_label_smoothing: 0.0
+      unlabeled_region_policy: slide_aware
+      monitor_metric: slide_f2
+      pseudo_label_top_fraction: 0.10
+      pseudo_label_warmup_epochs: 15
+      patch_loss_weight: 0.65
+      augmentation_consistency_weight: 0.0
+      augmentation_consistency_specs: []
+
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.003
+      momentum: 0.9
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 80
+    early_stopping:
+      enabled: true
+      patience: 10
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null
+
+
+inflammation:
+  tissue_region_net:
+    architecture:
+      name: tissue_region_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: binary
+    num_classes: 1
+    use_segmentation_training: true
+    batch_size: 1
+    val_batch_size: 1
+    grad_accum_steps: 1
+    mixed_precision: true
+    gradient_clipping: 1.0
+    num_workers: 2
+    pin_memory: true
+    dropout_rate: 0.35
+    hidden_dim: 240 # original 160
+    num_layers: 3
+    heads: 4
+    edge_dropout_p: 0.10
+    region_aux_weight: 0.15
+    region_aux_pos_weight_cap: 6.0
+    mixed_region_weight: 0.20
+
+    # --- Model hyperparameters (patch branch) ---
+    patch_hidden_dim: 160
+    patch_num_layers: 5
+    patch_aux_weight: 0.3 # 0.15, 0.2
+    patch_aux_pos_weight_cap: 6.0
+    patch_edge_dropout_p: 0.6 #0.1, 0.3
+    max_patch_nodes_for_full_forward: 600000
+    max_patch_edges_for_full_forward: 8000000
+    graph_instance_norm: false
+
+    use_edge_features: true
+
+    k: 8 # 10
+    normalize_pos: true
+    epochs: 80
+    in_dim: 1536
+    auto_pos_weight: true
+    strict_graph_name_match: false
+    resplit_large_regions: true
+    resplit_target_patches_per_region: 250 # 250, 150
+    resplit_k_region: 5 
+    resplit_min_patches_per_region: 8
+    train_augmentations: []
+
+    segmentation:
+      target: region
+      region_loss_weight: 0.25   
+      slide_loss_weight: 0.75    
+      aux_loss_weight: 0.40
+      fallback_region_weight: 0.20
+      max_fallback_to_explicit_ratio: 0.75
+      prefer_explicit_only_when_available: true
+      region_slide_consistency_weight: 0.55
+      slide_label_smoothing: 0.0
+      unlabeled_region_policy: slide_aware
+      sam_enabled: false
+      sam_rho: 0.05
+      monitor_metric: slide_f2
+      pseudo_label_top_fraction: 0.10
+      pseudo_label_warmup_epochs: 15
+      patch_loss_weight: 0.65 
+      augmentation_consistency_weight: 0.0
+      augmentation_consistency_p: 0.5
+      augmentation_consistency_specs: []
+
+      feature_consistency_weight: 0.3
+      manifold_mixup_p: 0.0
+      manifold_mixup_alpha: 0.4
+
+    optimizer:
+      name: AdamW
+      learning_rate: 0.00008
+      weight_decay: 0.01
+      momentum: 0.9
+    pos_weight: 1.0
+    scheduler:
+      enabled: true
+      name: CosineAnnealingLR
+      T_max: 80
+    early_stopping:
+      enabled: true
+      patience: 10
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null

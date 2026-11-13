@@ -1,0 +1,20 @@
+extends: ./context_aware_pipeline_camelyon_labels.yaml
+graph_build:
+  build:
+    feature_transforms:
+      - name: color_normalize
+        method: macenko
+        target_stats_path: configs/graph_build/reference_stats/camelyon_train_lab.json
+        macenko_rescale_concentration: false
+      - name: stain_augment
+        sigma_alpha: 0.2
+        sigma_beta: 0.2
+        p: 0.5
+      - name: gaussian_blur
+        max_sigma: 1.2
+        p: 0.2
+      - name: jpeg_compression
+        quality_min: 40
+        quality_max: 95
+        p: 0.2
+    transform_seed: 42

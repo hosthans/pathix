@@ -1,0 +1,40 @@
+graph_build:
+  build:
+    pipeline: dynamical
+    patch_level: 0
+    patch_size: 256
+    stride: 256
+    k_patch: 12
+    k_region: 6
+    mask_enable_color_normalization: true
+    mask_color_norm_strength: 0.65
+    mask_use_adaptive_hsv: true
+    mask_sat_percentile: 35.0
+    mask_val_percentile: 99.0
+    sat_min: 35.0
+    val_max: 195.0
+    tissue_frac_min: 0.08
+    morph_kernel: 7.0
+    min_component_area: 250.0
+    mask_drop_border_components: true
+    mask_border_margin_px: 16
+    mask_require_core_connection_for_border_components: true
+    mask_core_margin_px: 64
+    # Bit-exact, reproducible builds (inherited by every graph build config):
+    # pin cv2/BLAS threads in the worker and run every feature batch redundantly (see BuildConfig).
+    cv2_num_threads: 1
+    blas_num_threads: 1
+    feature_redundancy_check: true
+
+  creation:
+    annotation_type: geojson
+    mask_type: slide
+    use_annotations: true
+    use_precomputed_mask: true
+    annotations_dir: null
+    masks_dir: null
+
+    node_creation_mode: patch_encoder
+    patch_patch_edge_mode: knn
+    region_region_edge_mode: knn
+    cell_cell_edge_mode: knn

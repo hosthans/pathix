@@ -1,0 +1,192 @@
+# FIXED (configs/experiments copy only -- original configs/model_config_tissue_region_
+# camelyon_subtype_cls.yaml untouched): --graph_target_dir below was
+# data/processed/graphs/camelyon/context_aware_runtime, a corpus built from
+# context_aware_pipeline.yaml (annotation_label_source: group, no label_fields block) -- it has
+# no `subtype_y` field at all, since `subtype` only exists via the label_fields/csv_join
+# mechanism defined in context_aware_pipeline_camelyon_labels.yaml and its children. Corrected to
+# the corpus actually built with that label_fields lineage (same lineage the resnet50 sibling
+# config already points to, via its non_hist counterpart).
+# Use with (label_mode/num_classes/label_field all come from this file now -- --label_mode/
+# --num_classes/--label_field are only needed to override; do NOT pass --segmentation here):
+#   python -u src/entrypoint/train_model.py \
+#     --dataset camelyon --task lymph --model_type gnn --architecture tissue_region_net \
+#     --input_type graph --embedding_type pov-gigapath \
+#     --graph_target_dir data/processed/graphs/camelyon/context_aware_camelyon_domain_robust_labels \
+#     --cached --mil --seed 42 \
+#     --config_name model_config_tissue_region_camelyon_subtype_cls
+
+common:
+  deterministic: true
+  mixed_precision: false
+  save_frequency: 5
+  gradient_clipping: 1.0
+  seed: 42
+  device: "cuda:0"
+  fine_tuning:
+    enabled: false
+    pretrained_checkpoint: null
+    strict_load: false
+    freeze_all: false
+    freeze_backbone: false
+    freeze_feature_extractor: false
+    freeze_layers: []
+    trainable_layers: []
+    unfreeze_backbone_epoch: null
+    fine_tune_lr: null
+
+dataset_settings:
+  camelyon:
+    label_mode: multiclass
+    # 4 real subtype classes (itc/macro/micro/negative). The graph-build pipeline's
+    # subtype_label_vocab always carries a trailing "unknown" catch-all (see resolve_label_fields,
+    # src/graph_creation_new/helper/labels.py) for slides whose CSV join fails, but
+    # WSICachedGraphDataset now drops any such slide before it ever reaches training/eval (see
+    # graph_dataset.py's _resolve_label_field_is_unknown) -- id 4 never occurs, so the model gets
+    # a genuine 4-way head instead of wasting an output slot on a class with zero real examples.
+    num_classes: 4
+
+architectures:
+  tissue_region_net:
+    output_features: 160
+
+lymph:
+  tissue_region_net:
+    architecture:
+      name: tissue_region_net
+      pretrained: false
+      feature_extraction: false
+    label_mode: multiclass
+    num_classes: 4
+    label_field: subtype
+    batch_size: 1
+    val_batch_size: 1
+    grad_accum_steps: 4
+    mixed_precision: false
+    gradient_clipping: 1.0
+    num_workers: 0
+
+    dropout_rate: 0.45
+    hidden_dim: 160
+    num_layers: 3
+    heads: 4
+    edge_dropout_p: 0.30
+    region_aux_weight: 0.25
+    region_aux_pos_weight_cap: 6.0
+
+    patch_hidden_dim: 160
+    patch_num_layers: 3
+    # Was 0.65 (main slide-level loss is implicitly weight 1.0): that's a lot of gradient budget
+    # going to a binary patch-level tumor/normal aux task that can't distinguish itc/micro/macro
+    # extent, likely at the expense of the actual 4-way subtype signal. Pulled back down near
+    # region_aux_weight -- unverified by an ablation, revert if val kappa_quadratic gets worse.
+    patch_aux_weight: 0.3
+    patch_aux_pos_weight_cap: 6.0
+    patch_edge_dropout_p: 0.30
+    max_patch_nodes_for_full_forward: 60000
+    max_patch_edges_for_full_forward: 8000000
+    graph_instance_norm: false
+    # itc/micro/macro/negative are defined by tumor EXTENT (isolated cells vs. <2mm vs. >2mm),
+    # but slide_head previously only saw a single "is any region tumor-like" scalar
+    # (region_logit_max) alongside the pooled embedding -- no signal for HOW MUCH of the slide is
+    # tumor-positive. Adds mean tumor-logit + positive-fraction at region AND patch granularity.
+    # Opt-in (default false) so this doesn't affect any other tissue_region_net run (e.g. GSDB
+    # inflammation) that doesn't set it -- see model.py's use_extent_features.
+    use_extent_features: true
+
+    k: 10
+    normalize_pos: true
+    epochs: 80
+    in_dim: 1536
+    strict_graph_name_match: false
+    train_augmentations:
+      - name: feature_gaussian_noise
+        std: 0.05
+        node_types: [patch, region]
+      - name: feature_dropout
+        p: 0.1
+        node_types: [patch, region]
+      - name: feature_scale_noise
+        std: 0.1
+        node_types: [patch, region]
+      - name: graph_mixstyle
+        alpha: 0.2
+        p: 0.4
+        node_types: [patch, region]
+
+    consistency_weight: 0.0
+    consistency_specs: []
+    consistency_p: 1.0
+    domain_adversarial_weight: 0.0
+    domain_adversarial_specs: []
+    slide_label_smoothing: 0.0
+    monitor_metric: kappa_quadratic
+    # Raw class ids come from alphabetically sorting the subtype label field's CSV values
+    # (itc, macro, micro, negative -> ids 0,1,2,3; see resolve_csv_join/_load_csv_lookup in
+    # src/graph_creation_new/helper/labels.py), which does NOT match clinical severity order.
+    # This remaps id -> ordinal severity rank (negative=0 < itc=1 < micro=2 < macro=3) so that
+    # kappa_quadratic's distance penalty reflects tumor burden, matching the official CAMELYON17
+    # pN-stage evaluation protocol. Index i is class id i's rank.
+    ordinal_class_order: [1, 3, 2, 0]
+    # Multiclass counterpart of the binary balanced_sampling path: class-weighted CE (weights
+    # computed from the same inverse-frequency counts) only rescales gradients, it doesn't change
+    # how often a sample is drawn. With itc at ~8% of slides, oversampling it via
+    # WeightedRandomSampler actually increases how often the model sees it per epoch.
+    balanced_sampling: true
+    # Tested true (sampler-only balancing, unweighted CE) in run 20260914_133215 against the
+    # 20260913_214609 baseline -- see train_graph_model's avoid_double_balance_correction
+    # handling. Result was net negative: accuracy 0.786->0.663, kappa 0.637->0.500, MCC
+    # 0.647->0.541, negative-class recall 0.787->0.590 (61 support, ~12 more real negatives
+    # misclassified). micro recall did improve 0.400->0.800, but off only 5 support samples (1
+    # more correct). The stacked correction was evidently load-bearing for macro/negative
+    # reliability, not just redundant -- left false. Revisit only alongside a fix that targets
+    # itc/micro specifically without loosening negative/macro.
+    avoid_double_balance_correction: false
+    # Across 3 reruns of this exact config (20260913_214609, 20260915_090340, 20260915_162656),
+    # itc recall got WORSE as everything else improved (0.333 -> 0.167) while itc precision stayed
+    # at or near 1.0 -- the model becomes more confident/conservative overall and increasingly
+    # avoids committing to the rare itc class rather than learning to recognize it. Class-weighted
+    # CE only rescales each class's contribution; it can't stop the huge volume of easy,
+    # already-confident negative/macro examples from outweighing a handful of correctly-weighted
+    # Tested BOTH focal_use_alpha variants against the proven-best CE run (20260915_162656:
+    # accuracy=0.847, kappa=0.723, macro_f1=0.614):
+    #   - focal_use_alpha: true  (run 20260916_112929): macro_f1=0.525, itc recall=0.167, micro
+    #     recall=0.200 -- alpha stacked on top of gamma + balanced_sampling triple-corrects the
+    #     rare classes (see avoid_double_balance_correction's comment for the same pathology).
+    #   - focal_use_alpha: false (run 20260917_054319): macro_f1=0.509 (WORSE than alpha=true),
+    #     itc recall=0.167 (unchanged), micro precision collapsed to 0.091 (10/11 micro
+    #     predictions wrong). Removing alpha did not fix it -- gamma alone still underperforms.
+    # Conclusion: focal loss itself (regardless of alpha) underperforms plain class-weighted CE
+    # on this dataset -- reverted to ce, the empirically best-performing option so far. Revisit
+    # only with real evidence it can beat 0.847/0.723/0.614, not just "should help in theory".
+    loss_type: ce
+    focal_gamma: 2.0
+    focal_use_alpha: false
+
+    # Post-hoc, eval-time-only decision bias (see evaluate_model_graph's class_decision_bias docs
+    # in src/pipelines/evaluate.py). Tested {itc: 1.5} against run 20260916_112929: net negative --
+    # the only 2 slides it tipped (graph_19 p_itc=0.396, graph_40 p_itc=0.432) were both genuine
+    # negatives, not missed itc cases; the 5 actually-missed itc slides sit at much lower p(itc),
+    # confidently wrong rather than borderline, so no linear probability scaling reaches them.
+    # Left unset (neutral) -- the underlying miss isn't an eval-time threshold problem here.
+
+    optimizer:
+      name: AdamW
+      learning_rate: 0.0008
+      weight_decay: 0.02
+      momentum: 0.9
+    scheduler:
+      enabled: true
+      # Val loss/kappa_quadratic started diverging from train as early as epoch ~10-13 in the
+      # last run, well before CosineAnnealingLR's fixed 80-epoch decay would lower the LR on its
+      # own. React to the actual val trend instead: drop LR once kappa_quadratic stalls.
+      name: ReduceLROnPlateau
+      mode: max
+      factor: 0.5
+      patience: 5
+    early_stopping:
+      enabled: true
+      patience: 10
+      min_delta: 0.002
+    fine_tuning:
+      unfreeze_backbone_epoch: null
+      fine_tune_lr: null

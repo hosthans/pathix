@@ -1,0 +1,8 @@
+extends: ./context_aware_runtime_gsdb.yaml
+graph_build:
+  build:
+    patch_size: 256
+    stride: 256
+  csv: null
+  csv_path: data/splits/gsdb/all_slides.csv
+  overwrite: false
